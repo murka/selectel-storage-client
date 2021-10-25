@@ -19,10 +19,16 @@ export interface Params {
   password: string;
   proto?: Protocol;
   token?: string;
+  ssl?: boolean;
   numericDomain?: number;
 }
 
-const prefixUrl = (key: number | string = 'api') => `https://${key}.selcdn.ru`;
+export interface Prefix {
+  key?: number | string,
+  ssl?: boolean
+}
+
+const prefixUrl = ({ key, ssl }: Prefix = { key: 'api', ssl: true }) => `http${ssl ? 's' : ''}://${key}.selcdn.ru`;
 
 export class SelectelStorageClient {
   /**
@@ -34,6 +40,7 @@ export class SelectelStorageClient {
   private readonly password: string;
   private readonly proto: Protocol;
   private readonly storageUrl: string;
+  private readonly ssl: boolean;
   private numericDomain?: number;
   /**
    * Authorization token
@@ -49,8 +56,9 @@ export class SelectelStorageClient {
     this.userId = params.userId;
     this.password = params.password;
     this.proto = params.proto || 3;
+    this.ssl = params.ssl;
     this.accountId = SelectelStorageClient.extractAccountId(this.userId);
-    this.storageUrl = `${prefixUrl()}/v1/SEL_${this.accountId}`;
+    this.storageUrl = `${prefixUrl({ ssl: this.ssl })}/v1/SEL_${this.accountId}`;
     this.numericDomain = params.numericDomain;
     this.token = params.token;
 
@@ -77,7 +85,7 @@ export class SelectelStorageClient {
   public getInfo() {
     return this.getNumericDomain()
       .then((numericDomain) =>
-        this.makeRequest(prefixUrl(numericDomain), 'HEAD'),
+        this.makeRequest(prefixUrl({ key: numericDomain, ssl: this.ssl }), 'HEAD'),
       )
       .catch(handleError);
   }
@@ -96,7 +104,7 @@ export class SelectelStorageClient {
       const searchParams = new URLSearchParams([['format', 'json']]);
       return this.getNumericDomain()
         .then((numericDomain) =>
-          this.makeRequest(prefixUrl(numericDomain), 'GET', {
+          this.makeRequest(prefixUrl({ key: numericDomain, ssl: this.ssl }), 'GET', {
             searchParams,
             headers: {
               accept: 'application/json',
@@ -377,7 +385,7 @@ export class SelectelStorageClient {
 
   protected loadNumericDomain(): Promise<any> {
     return got.get({
-      prefixUrl: prefixUrl('auth'),
+      prefixUrl: prefixUrl({ key: 'auth', ssl: this.ssl }),
       headers: {
         'X-Auth-User': this.userId,
         'X-Auth-Key': this.password,
@@ -402,7 +410,7 @@ export class SelectelStorageClient {
     switch (this.proto) {
       case 1:
         return got.get(url, {
-          prefixUrl: prefixUrl(),
+          prefixUrl: prefixUrl({ ssl: this.ssl }),
           headers: {
             'X-Auth-User': this.userId,
             'X-Auth-Key': this.password,
@@ -410,7 +418,7 @@ export class SelectelStorageClient {
         });
       case 2:
         return got.post(url, {
-          prefixUrl: prefixUrl(),
+          prefixUrl: prefixUrl({ ssl: this.ssl }),
           headers: {
             'Content-type': 'application/json',
           },
@@ -428,7 +436,7 @@ export class SelectelStorageClient {
       case 3:
       default: {
         const response = got.post(url, {
-          prefixUrl: prefixUrl(),
+          prefixUrl: prefixUrl({ ssl: this.ssl }),
           headers: {
             'Content-type': 'application/json',
           },
